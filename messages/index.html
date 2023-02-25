@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+  <meta charset="utf-8" />
+  <title>Messages</title>
+  <script>
+    function loadMessages() {
+      jsonData = '[{"id":1,"content":"Do you really want to hurt me?","username":"Boy"},{"id":2,"content":"Do you really want to make me cry?","username":"George"}]';
+      datasets = JSON.parse(jsonData);
+
+      var messages_div = document.getElementById("messages");
+      
+      var msg1 = document.createElement("p");
+      msg1.innerText = datasets[0].content+" "+datasets[0].username;
+      messages_div.append(msg1);
+
+      var msg2 = document.createElement("p");
+      msg2.innerText = datasets[1].content+" "+datasets[1].username;
+      messages_div.append(msg2);
+    }
+  </script>
+</head>
+
+<body onload="loadMessages()">
+  <h1>Messages</h1>
+  <div id="messages"></div>
+</body>
+
+</html>
