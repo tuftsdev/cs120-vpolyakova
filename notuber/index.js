@@ -49,23 +49,3 @@ function initMap() {
 
 window.initMap = initMap;
 
-// Documentation for XMLHttpRequest object: https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequest
-
-// A global variable `request`
-var request;
-
-// Step 1: Make an instance of the XMLHttpRequest object to make an HTTP GET request
-request = new XMLHttpRequest();
-
-// Step 2: Initialize HTTP request
-request.open("GET", "", true);
-
-// Step 3: Set up handler / callback function to deal with HTTP response
-request.onreadystatechange = function() {
-  // Step 5: ?????
-  img = document.GetElemenyById("meow");
-  img
-}
-
-// Step 4: Send ("fire off") the request
-request.send();
