@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <title>Not Uber2</title>
+  <script src="https://polyfill.io/v3/polyfill.min.js?features=default"></script>
+
+  <link rel="stylesheet" type="text/css" href="./style.css" />
+  <script>
+    let map;
+    var myLat;
+    var myLng;
+    var distances = [];
+    var userNames = [];
+
+    findMyLocation();
+
+    function findMyLocation() {
+      if (navigator.geolocation) //check if supported
+      {
+        navigator.geolocation.getCurrentPosition(onCurrentPositionFound)
+      }
+      else {
+        console.log("geolocation not supported")
+      }
+    }
+
+    function onCurrentPositionFound(position) {
+
+      myLat = position.coords.latitude;
+      myLng = position.coords.longitude;
+
+      console.log(myLat);
+      console.log(myLng);
+
+      window.initMap = initMyMap(parseFloat(myLat), parseFloat(myLng));
+
+    }
+
+    function initMyMap(latitude, longitude) {
+      console.log("init map called");
+      console.log(latitude);
+      console.log(longitude);
+      const map = new google.maps.Map(document.getElementById("map"), {
+        center: { lat: latitude, lng: longitude },
+        zoom: 1,
+      });
+
+      const myLocation = new google.maps.Marker({
+        position: { lat: latitude, lng: longitude },
+        title: "Current Location",
+        map,
+      });
+
+      //make ride hailing api call
+      var request;
+
+      // Step 1: Make an instance of the XMLHttpRequest object to make an HTTP POST request
+      request = new XMLHttpRequest();
+      request.open("POST", "https://jordan-marsh.herokuapp.com/rides", true);
+      request.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+
+      // Step 3: Set up handler / callback function to deal with HTTP response
+      request.onreadystatechange = function () {
+        if (request.readyState !== 4) return;
+        //Step 4: Retrieve response and log
+        var data = request.responseText;
+
+        console.log("response text: " + data);
+
+        //Step 5:Parse JSON:
+        var json_data = JSON.parse(data);
+        console.log("parsed json data:" + json_data);
+
+        for (numMarkers = 0; numMarkers < 6; numMarkers++) {
+          var carUsername = json_data[numMarkers]["username"];
+          var carLat = parseFloat(json_data[numMarkers]["lat"]);
+          var carLng = parseFloat(json_data[numMarkers]["lng"]);
+          console.log(carUsername);
+          console.log(carLat);
+          console.log(carLng);
+
+          const image =
+            "car.png";
+
+          var carMarker = new google.maps.Marker({
+            position: { lat: carLat, lng: carLng },
+            map,
+            icon: image,
+          });
+          console.log(myLat);
+          console.log(myLng);
+
+          distances[numMarkers] = haversineDistance(myLng, myLat, carLng, carLat, true, carUsername)
+          userNames[numMarkers] = carUsername;
+
+          console.log("distance from car " + carUsername + "is " + distances[numMarkers]);
+        }
+
+        console.log(distances);
+        var minDist = Math.min.apply(null, distances);
+        var idx = distances.indexOf(minDist);
+        var minDistCarName = userNames[idx];
+
+        console.log(minDist);
+        console.log(idx);
+
+        myLocation.title = "Closest car is "+minDist+" miles away. Car username is "+minDistCarName;
+
+        var infowindow = new google.maps.InfoWindow();
+
+        // Open info window on click of marker
+        google.maps.event.addListener(myLocation, 'click', function () {
+          infowindow.setContent(myLocation.title);
+          infowindow.open(map, myLocation);
+        });
+
+      }
+      // Step 4: Send ("fire off") the request
+      request.send("username=PT88yXTq&lat=" + latitude + "&lng=" + longitude);
+
+
+    }
+
+    function haversineDistance(coords1Lng, coords1Lat, coords2Lng, coordes2Lat, isMiles, useName) {
+      function toRad(x) {
+        return x * Math.PI / 180;
+      }
+
+      var lon1 = coords1Lng;
+      var lat1 = coords1Lat;
+
+      var lon2 = coords2Lng;
+      var lat2 = coordes2Lat;
+
+      var R = 6371; // km
+
+      var x1 = lat2 - lat1;
+      var dLat = toRad(x1);
+      var x2 = lon2 - lon1;
+      var dLon = toRad(x2)
+      var a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+      var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      var d = R * c;
+
+      if (isMiles) d /= 1.60934;
+
+      return d;
+    }
+
+  </script>
+</head>
+
+<body>
+  <div id="map"></div>
+
+  <!-- 
+      The `defer` attribute causes the callback to execute after the full HTML
+      document has been parsed. For non-blocking uses, avoiding race conditions,
+      and consistent behavior across browsers, consider loading using Promises
+      with https://www.npmjs.com/package/@googlemaps/js-api-loader.
+      -->
+  <script
+    src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCAB2A0_ej5ZtoRuZl_k-YAOnBQArzd7WA&callback=findMyLocation&v=weekly"
+    defer></script>
+</body>
+
+</html>
