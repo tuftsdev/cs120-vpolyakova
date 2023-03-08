@@ -1,5 +1,5 @@
-# dom
-Valentina Polyakova notuber, Lab 6
+# DOM
+Valentina Polyakova DOM, Lab 6
 
 ##### Identify what aspects of the work have been correctly implemented and what have not.
 All aspects of work have been implemented correctly, per lab 6 guidelines
