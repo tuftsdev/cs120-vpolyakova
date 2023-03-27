@@ -12,6 +12,8 @@
     var myLng;
     var distances = [];
     var userNames = [];
+    var carLats = [];
+    var carLngs = [];
 
     findMyLocation();
 
@@ -26,31 +28,69 @@
     }
 
     function onCurrentPositionFound(position) {
-
       myLat = position.coords.latitude;
       myLng = position.coords.longitude;
-
-      console.log(myLat);
-      console.log(myLng);
-
       window.initMap = initMyMap(parseFloat(myLat), parseFloat(myLng));
-
     }
 
     function initMyMap(latitude, longitude) {
-      console.log("init map called");
-      console.log(latitude);
-      console.log(longitude);
       const map = new google.maps.Map(document.getElementById("map"), {
         center: { lat: latitude, lng: longitude },
-        zoom: 1,
+        zoom: 2.5,
       });
-
       const myLocation = new google.maps.Marker({
         position: { lat: latitude, lng: longitude },
         title: "Current Location",
         map,
       });
+
+      //show restaurants, bars and coffe shops
+      //used code from google maps places api example: https://developers.google.com/maps/documentation/javascript/examples/place-search    
+      var request = {
+        location: { lat: latitude, lng: longitude },
+        radius: '804.672',
+        type: ['restaurant']
+      };
+
+      var service = new google.maps.places.PlacesService(map);
+      service.nearbySearch(request, callback);
+
+      function callback(results, status) {
+        console.log(results);
+        if (status == google.maps.places.PlacesServiceStatus.OK) {
+          for (var i = 0; i < results.length; i++) {
+            createMarker(results[i]);
+          }
+        }
+      }
+
+      function createMarker(place) {
+        if (!place.geometry || !place.geometry.location) return;
+
+        const food = "food.png";
+
+        var placesMarker = new google.maps.Marker({
+          map,
+          position: place.geometry.location,
+          icon: food,
+        });
+
+        // placesMarker.title = place.name;
+        // console.log(placesMarker.title);
+        // var placesMarkerInfowindow = new google.maps.InfoWindow();
+        // google.maps.event.addListener(placesMarker, "click", () => {
+        //   placesMarkerInfowindow.setContent(this.title);
+        //   placesMarkerInfowindow.open(map, this);
+        // });
+
+        placesMarker.title = place.name || "restaurant name could not be retrieved";
+        var placesMarkerInfowindow = new google.maps.InfoWindow();
+        google.maps.event.addListener(placesMarker, 'click', function () {
+          placesMarkerInfowindow.setContent(this.title);
+          placesMarkerInfowindow.open(map, this);
+        });
+      }
+
 
       //make ride hailing api call
       var request;
@@ -62,92 +102,75 @@
 
       // Step 3: Set up handler / callback function to deal with HTTP response
       request.onreadystatechange = function () {
-        if (request.readyState !== 4) return;
+        if (request.readyState !== 4 || request.status !== 200) return;
         //Step 4: Retrieve response and log
         var data = request.responseText;
 
-        console.log("response text: " + data);
-
         //Step 5:Parse JSON:
         var json_data = JSON.parse(data);
-        console.log("parsed json data:" + json_data);
 
         for (numMarkers = 0; numMarkers < 6; numMarkers++) {
           var carUsername = json_data[numMarkers]["username"];
           var carLat = parseFloat(json_data[numMarkers]["lat"]);
           var carLng = parseFloat(json_data[numMarkers]["lng"]);
-          console.log(carUsername);
-          console.log(carLat);
-          console.log(carLng);
-
-          const image =
-            "car.png";
+          const image = "car.png";
 
           var carMarker = new google.maps.Marker({
             position: { lat: carLat, lng: carLng },
             map,
             icon: image,
           });
-          console.log(myLat);
-          console.log(myLng);
 
-          distances[numMarkers] = haversineDistance(myLng, myLat, carLng, carLat, true, carUsername)
+          //calculate distance between my location and car location using computeDistanceBetween function
+          var myLatLng = new google.maps.LatLng(latitude, longitude);
+          var carLatLng = new google.maps.LatLng(carLat, carLng);
+          distances[numMarkers] = convertToMiles(google.maps.geometry.spherical.computeDistanceBetween(myLatLng, carLatLng));
           userNames[numMarkers] = carUsername;
+          carLats[numMarkers] = carLat;
+          carLngs[numMarkers] = carLng;
 
-          console.log("distance from car " + carUsername + "is " + distances[numMarkers]);
+          carMarker.title = "Car " + carUsername + " is " + Math.round(distances[numMarkers]) + " miles away. It's coordinates are: " + carLat + "latitude and " + carLng + "longitude";
+          var carInfowindow = new google.maps.InfoWindow();
+          google.maps.event.addListener(carMarker, 'click', function () {
+            carInfowindow.setContent(this.title);
+            carInfowindow.open(map, this);
+          });
         }
 
-        console.log(distances);
         var minDist = Math.min.apply(null, distances);
         var idx = distances.indexOf(minDist);
         var minDistCarName = userNames[idx];
 
-        console.log(minDist);
-        console.log(idx);
+        var minCarLat = carLats[idx];
+        var minCarLng = carLngs[idx];
 
-        myLocation.title = "Closest car is "+minDist+" miles away. Car username is "+minDistCarName;
+        const path = [{ lat: myLat, lng: myLng }, { lat: minCarLat, lng: minCarLng }];
+        const line = new google.maps.Polyline({
+          path: path,
+          strokeColor: "#FF0000",
+          strokeOpacity: 1.0,
+          strokeWeight: 2,
+        });
 
+        line.setMap(map);
+
+        myLocation.title = "Closest car is " + Math.round(minDist) + " miles away. Car username is " + minDistCarName;
+        //myLocation.content = "Closest car is " + Math.round(minDist) + " miles away. Car username is " + minDistCarName;
         var infowindow = new google.maps.InfoWindow();
-
         // Open info window on click of marker
         google.maps.event.addListener(myLocation, 'click', function () {
           infowindow.setContent(myLocation.title);
           infowindow.open(map, myLocation);
         });
-
       }
       // Step 4: Send ("fire off") the request
       request.send("username=PT88yXTq&lat=" + latitude + "&lng=" + longitude);
-
-
     }
 
-    function haversineDistance(coords1Lng, coords1Lat, coords2Lng, coordes2Lat, isMiles, useName) {
-      function toRad(x) {
-        return x * Math.PI / 180;
-      }
-
-      var lon1 = coords1Lng;
-      var lat1 = coords1Lat;
-
-      var lon2 = coords2Lng;
-      var lat2 = coordes2Lat;
-
-      var R = 6371; // km
-
-      var x1 = lat2 - lat1;
-      var dLat = toRad(x1);
-      var x2 = lon2 - lon1;
-      var dLon = toRad(x2)
-      var a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-        Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
-        Math.sin(dLon / 2) * Math.sin(dLon / 2);
-      var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-      var d = R * c;
-
-      if (isMiles) d /= 1.60934;
-
-      return d;
+    function convertToMiles(meters) {
+      meterDist = meters;
+      milesDist = meterDist / 1609.344;
+      return milesDist;
     }
 
   </script>
@@ -163,7 +186,7 @@
       with https://www.npmjs.com/package/@googlemaps/js-api-loader.
       -->
   <script
-    src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCAB2A0_ej5ZtoRuZl_k-YAOnBQArzd7WA&callback=findMyLocation&v=weekly"
+    src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCAB2A0_ej5ZtoRuZl_k-YAOnBQArzd7WA&libraries=geometry,places&callback=findMyLocation&v=weekly"
     defer></script>
 </body>
 
