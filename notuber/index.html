@@ -55,8 +55,7 @@
       var service = new google.maps.places.PlacesService(map);
       service.nearbySearch(request, callback);
 
-      function callback(results, status) {
-        console.log(results);
+      function callback(results, status) {        
         if (status == google.maps.places.PlacesServiceStatus.OK) {
           for (var i = 0; i < results.length; i++) {
             createMarker(results[i]);
@@ -74,14 +73,6 @@
           position: place.geometry.location,
           icon: food,
         });
-
-        // placesMarker.title = place.name;
-        // console.log(placesMarker.title);
-        // var placesMarkerInfowindow = new google.maps.InfoWindow();
-        // google.maps.event.addListener(placesMarker, "click", () => {
-        //   placesMarkerInfowindow.setContent(this.title);
-        //   placesMarkerInfowindow.open(map, this);
-        // });
 
         placesMarker.title = place.name || "restaurant name could not be retrieved";
         var placesMarkerInfowindow = new google.maps.InfoWindow();
@@ -109,7 +100,7 @@
         //Step 5:Parse JSON:
         var json_data = JSON.parse(data);
 
-        for (numMarkers = 0; numMarkers < 6; numMarkers++) {
+        for (numMarkers = 0; numMarkers < json_data.length; numMarkers++) {
           var carUsername = json_data[numMarkers]["username"];
           var carLat = parseFloat(json_data[numMarkers]["lat"]);
           var carLng = parseFloat(json_data[numMarkers]["lng"]);
