@@ -2,10 +2,16 @@
 <html>
 
 <head>
-  <title>Not Uber2</title>
-  <script src="https://polyfill.io/v3/polyfill.min.js?features=default"></script>
+  <title>Not Uber</title>
+  <link rel="stylesheet" type="text/css" href="./style.css" />  
+</head>
 
-  <link rel="stylesheet" type="text/css" href="./style.css" />
+<body>
+  <div id="map"></div>
+  <script
+    src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCAB2A0_ej5ZtoRuZl_k-YAOnBQArzd7WA&libraries=geometry,places&callback=findMyLocation&v=weekly"
+    defer></script>
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=default"></script>
   <script>
     let map;
     var myLat;
@@ -18,7 +24,7 @@
     findMyLocation();
 
     function findMyLocation() {
-      if (navigator.geolocation) //check if supported
+      if (navigator.geolocation)
       {
         navigator.geolocation.getCurrentPosition(onCurrentPositionFound)
       }
@@ -44,8 +50,6 @@
         map,
       });
 
-      //show restaurants, bars and coffe shops
-      //used code from google maps places api example: https://developers.google.com/maps/documentation/javascript/examples/place-search    
       var request = {
         location: { lat: latitude, lng: longitude },
         radius: '804.672',
@@ -82,23 +86,19 @@
         });
       }
 
-
-      //make ride hailing api call
       var request;
 
-      // Step 1: Make an instance of the XMLHttpRequest object to make an HTTP POST request
       request = new XMLHttpRequest();
       request.open("POST", "https://peaceful-citadel-39984.herokuapp.com/rides", true);
       request.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
 
-      // Step 3: Set up handler / callback function to deal with HTTP response
       request.onreadystatechange = function () {
         if (request.readyState !== 4 || request.status !== 200) return;
-        //Step 4: Retrieve response and log
         var data = request.responseText;
+        console.log(data);
 
-        //Step 5:Parse JSON:
         var json_data = JSON.parse(data);
+        console.log(json_data);
 
         for (numMarkers = 0; numMarkers < json_data.length; numMarkers++) {
           var carUsername = json_data[numMarkers]["username"];
@@ -112,7 +112,6 @@
             icon: image,
           });
 
-          //calculate distance between my location and car location using computeDistanceBetween function
           var myLatLng = new google.maps.LatLng(latitude, longitude);
           var carLatLng = new google.maps.LatLng(carLat, carLng);
           distances[numMarkers] = convertToMiles(google.maps.geometry.spherical.computeDistanceBetween(myLatLng, carLatLng));
@@ -146,39 +145,19 @@
         line.setMap(map);
 
         myLocation.title = "Closest car is " + Math.round(minDist) + " miles away. Car username is " + minDistCarName;
-        //myLocation.content = "Closest car is " + Math.round(minDist) + " miles away. Car username is " + minDistCarName;
         var infowindow = new google.maps.InfoWindow();
-        // Open info window on click of marker
         google.maps.event.addListener(myLocation, 'click', function () {
           infowindow.setContent(myLocation.title);
           infowindow.open(map, myLocation);
         });
       }
-      // Step 4: Send ("fire off") the request
       request.send("username=PT88yXTq&lat=" + latitude + "&lng=" + longitude);
     }
-
     function convertToMiles(meters) {
       meterDist = meters;
       milesDist = meterDist / 1609.344;
       return milesDist;
     }
-
   </script>
-</head>
-
-<body>
-  <div id="map"></div>
-
-  <!-- 
-      The `defer` attribute causes the callback to execute after the full HTML
-      document has been parsed. For non-blocking uses, avoiding race conditions,
-      and consistent behavior across browsers, consider loading using Promises
-      with https://www.npmjs.com/package/@googlemaps/js-api-loader.
-      -->
-  <script
-    src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCAB2A0_ej5ZtoRuZl_k-YAOnBQArzd7WA&libraries=geometry,places&callback=findMyLocation&v=weekly"
-    defer></script>
 </body>
-
 </html>
