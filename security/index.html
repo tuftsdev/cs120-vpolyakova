@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+
+<html lang="en">
+    <head>
+        <title>Valentina Polyakova Lab 13</title>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width; initial-scale=1.0; maximum-scale=1.0; user-scalable=0;">
+        <!-- <link rel="stylesheet" href="styles.css"> -->
+    </head>
+
+    <body id="lab13">
+
+        <h1><strong>Introduction</strong></h1>
+        <p>The product being evaluated is a web server for a ride-hailing service. The goal of the assessment is to identify security and privacy issues 
+            in the application, so that the customer can correct vulnerabilities and prevent cybersecurity attacks in the future.</p>
+
+        <h1><strong>Methodology</strong></h1>
+        <p>Both "black box" and "white box" testing of the web server was performed. Curl was used as a testing tool to send potentially vulnerable post 
+            and get statements and a web browser was used to determine if a hacking attack was successful. No programs or additional tools were used for 
+            this assignment.</p>
+        <p>For "black box" testing, curl was used to populate vehicle info and driver info tables in the post route with random data. Curl was also used 
+            to perform a cross site scripting attack to pass malicious data to the server inside script tags. </p>
+        <p>For "white box" testing, the code was first examined for vulnerabilities. Then, chrome browser was used to test out the two routes suspected to 
+            be vulnerable to SQL injection</p>
+        
+        <h1><strong>Abstract of Findings</strong></h1>
+        <p>The /rides post route was found vulnerable to cross site scripting attacks. The get routes for adding vehicle and customer data to the database 
+            were found vulnerable to SQL injection.</p>
+        <p>The /rides post routes was supposed to return a json list of cars if a username and coordinates were provided by the user. However, since the 
+            username data provided by the user was not sanitized in any way, the /rides route became an easy target for malicious hacking attacks. It was 
+            possible to pass illegal parameters such as very long strings and special characters as usernames for customers and vehicles without any issues.
+            Additionally, a cross site scripting attack was performed by pasting alert("hacked") inside the script tags instead of a valid username.</p>
+        <p>The parameters on the get routes (everything after ?) were not sanitized either. The user entries on the server side were concatenated directly 
+            into the SQL statement select, from, where. The "where" clause is notoriously vulnerable to SQL injection because an attacker can easily extend 
+            it to include other logic and other sql commands. For example, select * from customer_info where username='valentina' can be modified to select 
+            * from customer_info where username='valentina' OR '1'='1'. The second part of the OR, 1=1, is always true, hence the select statement will 
+            return not just the entries where username is valentina, but everything from the customer_info table, even if valentina is not a valid user.</p>
+        
+        <h1><strong>Discovered Vulnerabilities</strong></h1>
+        <h3><strong>Issue 1: .post /rides route: cross site scripting</strong></h3>
+        <ul>
+            <li><u>Issue:</u> Cross Site Scripting</li> 
+            <li><u>Location / page where issue was found:</u> https://jordan-marsh.herokuapp.com/rides</li>
+            <li><u>Severity:</u> High. /rides route user input is not sanitized, making the server vulnerable to cross site scripting attacks. In 
+                cross site scripting, the attacker can execute any java script code inside the script tags, making it easy to steal cookies, re-direct to a 
+                different web-site and/or display malicious messages to the user</li>
+            <li><u>Description of issue. How did you find it?</u> The issue was identified during "white box" testing of the .post /rides route using curl. 
+                After realizing that the usernames are not checked against a list of valid values, other special characters and script tags with various 
+                messages were tested and inserted into the database without issues. The server accepted all inputs and the prompts inside script tags were 
+                executed on page load as pop-up messages.</li>
+            <li><u>Proof of vulnerability.</u>
+                <p>Executed curl command:</p><p><a><img src = "issue1_1.png" alt="curl command" "></a></p>
+                <p>Proof of vulnerability on the server side:</p><p><a><img src = "issue1_2.png" alt="server screenshot with alert prompt"></a></p>                
+                <p><a><img src = "issue1_3.png" alt="server screenshot home page"></a></p>
+            </li>
+            <li><u>Resolution. Make recommendation(s) on how issue can be resolved:</u> To resolve the issue, the web server can limit the username field to 
+                only accept valid entries that are verified by the server. For example, the server can check the value of the username against a stored 
+                array of valid users by executing the following code inside the post route:<br>
+            <br>
+            <code>var validUser=false;<br>
+            var validUsers = ['user1', 'user2', 'user3']; // array of valid usernames<br>
+            <br>
+            if (!validUsers.includes(req.body.username)) { // check if the provided username is valid <br>
+                <a style="margin-left: 25px;"> return res.status(400).json({ error: 'Invalid username' }); // return an error message if the username is invalid</a><br>
+            }<br>
+            // proceed with processing the request if the username is valid<br></code>
+            <br>            
+            By implementing this solution, the web server can prevent unauthorized access and protect against cross-site scripting attacks. Additionally, the 
+            server should implement input validation and sanitization for all user-provided data. Regular security audits and testing can also help to identify 
+            and mitigate vulnerabilities in the web server.</li>            
+        </ul>
+
+        <h3><strong>Issue 2: .get /passenger.json route:</strong></h3>
+        <ul>
+            <li><u>Issue:</u> SQL Injection</li> 
+            <li><u>Location / page where issue was found:</u>https://jordan-marsh.herokuapp.com/passenger.json</li>
+            <li><u>Severity:</u>High. Database is compromised. Any data, including username and password information can be retrieved using SQL injection.</li>
+            <li><u>Description of issue. How did you find it?</u> The issue was discovered during "white box" testing. After examining the server code, I was 
+                suspecting that the passenger .get route is vulnerable to SQL injection because user input data was concatenated directly into the where clause 
+                of the select statement. After some testing, I discovered that user input parameter (everything after the ? on the route) can be modified to 
+                perform SQL injection. For example, by entering:<br>
+                <br>
+                <code>username='valentina' OR '1'='1'</code><br>
+                <br>
+                I was able to retrieve information about all users from the server. <br>
+                The url used for the SQL injection attach was the following:<br>
+                <br>
+                https://jordan-marsh.herokuapp.com/passenger.json?username=valentina%27%20OR%20%271%27=%271<br>
+                <br>
+                It evaluated to SQL Statement: <br>
+                <br>
+                <code>theQuery = "SELECT * FROM passengers WHERE username = '"valentina' OR '1'='1" '";</code><br>
+                <br>
+                Since the second part of the statement after OR is always true, the query will return all information from the passengers table, even if valentina 
+                is not a valid user.<br>
+                <br>    
+            </li>
+            <li><u>Proof of vulnerability.</u>
+                <p><a><img src = "issue2_1.png" alt="server screen shot without SQL injection" "></a></p>
+                <p><a><img src = "issue2_2.png" alt="server screenshot with SQL injection"></a></p>
+            </li>
+            <li><u>Resolution. Make recommendation(s) on how issue can be resolved:</u> <br>
+                <ul>
+                    <li>Filter out special characters especially single and double quotes</li>
+                    <li>Use prepared statements</li>
+                    <li>Limit data and privileges that a database has access to => least privilege</li>
+                </ul>
+            </li>            
+        </ul>
+
+        <h3><strong>Issue 3: .get /vehicle.json route:</strong></h3>
+        <ul>
+            <li><u>Issue:</u> SQL Injection</li> 
+            <li><u>Location / page where issue was found:</u>https://jordan-marsh.herokuapp.com/vehicle.json</li>
+            <li><u>Severity:</u>High. Database is compromised. Any data, including username and password information can be retrieved using SQL injection.</li>
+            <li><u>Description of issue. How did you find it?</u> The issue was discovered during "white box" testing. After examining the server code, I was 
+                suspecting that the vehicle .get route is vulnerable to SQL injection because user input data was concatenated directly into the where clause 
+                of the select statement. After some testing, I discovered that user input parameter (everything after the ? on the route) can be modified to 
+                perform SQL injection. For example, by entering:<br>
+                <br>
+                <code>username='JANET' OR '1'='1'</code><br>
+                <br>
+                I was able to retrieve information about all vehicles from the server. <br>
+                The url used for the SQL injection attach was the following:<br>
+                <br>
+                https://jordan-marsh.herokuapp.com/vehicle.json?username=JANET%27%20OR%20%271%27=%271<br>
+                <br>
+                It evaluated to SQL Statement: <br>
+                <br>
+                <code>theQuery = "SELECT * FROM passengers WHERE username = '"JANET' OR '1'='1" '";</code><br>
+                <br>
+                Since the second part of the statement after OR is always true, the query will return all information from the vehicles table, even if JANET 
+                is not a valid vehicle username.<br>
+                <br>    
+            </li>
+            <li><u>Proof of vulnerability.</u>
+                <p><a><img src = "issue3_1.png" alt="server screen shot without SQL injection" "></a></p>
+                <p><a><img src = "issue3_2.png" alt="server screenshot with SQL injection"></a></p>
+            </li>
+            <li><u>Resolution. Make recommendation(s) on how issue can be resolved:</u> <br>
+                <ul>
+                    <li>Filter out special characters especially single and double quotes</li>
+                    <li>Use prepared statements</li>
+                    <li>Limit data and privileges that a database has access to => least privilege</li>
+                </ul>
+            </li>            
+        </ul>
+
+        <h1><strong>Conclusion</strong></h1>
+        <p>The server was found to be very vulnarable to malicious hacking attacks. Before going into production, the server should implement input validation 
+            and sanitization for all user-provided data. No special characters should be allowed, especially single and double quotes, as well as script tags. For 
+            SQL statements the recommendation is to switch over to prepared statements instead of direct input concatination into the SQL statement. For the database 
+            the recommendation is to limit databased access and privilages only to the information pertaining to a logged-in user.</p>        
+        
+    </body>
+</html>
